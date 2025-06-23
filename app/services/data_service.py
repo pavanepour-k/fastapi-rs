@@ -1,47 +1,72 @@
-import rustlib as rust_mod
-import json
+import rustlib
 from typing import Any, Dict, List
 
 
-def validate_json_schema(json_data: Dict[str, Any], schema: Dict[str, Any]) -> bool:
+def parse_json(text: str) -> Any:
     """
-    Validate a JSON object against a schema using Rust.
+    Parse a JSON string into a Python object using Rust.
 
     Args:
-        json_data: The JSON data to validate.
-        schema: The JSON schema definition.
+        text (str): A valid JSON string.
 
     Returns:
-        True if the data conforms to the schema, False otherwise.
+        Any: The corresponding Python object (dict, list, etc.).
     """
-    return rust_mod.validate_json_schema(
-        json.dumps(json_data),
-        json.dumps(schema),
-    )
+    return rustlib.parse_json(text)
 
 
-def calculate_similarity(str1: str, str2: str) -> float:
+def to_json_string(value: Any) -> str:
     """
-    Compute a similarity score between two strings using Rust.
+    Serialize a Python object into a JSON string using Rust.
 
     Args:
-        str1: First string.
-        str2: Second string.
+        value (Any): A JSON-serializable Python object.
 
     Returns:
-        A float score in the range [0.0, 1.0] indicating similarity.
+        str: A formatted JSON string.
     """
-    return rust_mod.calculate_similarity(str1, str2)
+    return rustlib.to_json_string(value)
 
 
-def parse_csv(data: str) -> List[List[str]]:
+def read_csv(path: str, has_headers: bool = True) -> List[Dict[str, str]]:
     """
-    Parse CSV-formatted text into rows of fields using Rust.
+    Read a CSV file into a list of dictionaries using Rust.
 
     Args:
-        data: A CSV string where each line is a row and fields are comma-separated.
+        path (str): Path to the CSV file.
+        has_headers (bool): Whether the CSV includes headers as the first row.
 
     Returns:
-        A list of rows, each row is a list of string fields.
+        List[Dict[str, str]]: List of rows as dictionaries (column name or index -> value).
     """
-    return rust_mod.parse_csv(data)
+    return rustlib.read_csv(path, has_headers)
+
+
+def write_csv(path: str, data: List[Dict[str, str]], has_headers: bool = True) -> None:
+    """
+    Write a list of dictionaries to a CSV file using Rust.
+
+    Args:
+        path (str): Path to save the CSV file.
+        data (List[Dict[str, str]]): List of dictionaries representing rows.
+        has_headers (bool): Whether to write headers as the first row.
+
+    Returns:
+        None
+    """
+    rustlib.write_csv(path, data, has_headers)
+
+
+def filter_rows(data: List[Dict[str, str]], column: str, pattern: str) -> List[Dict[str, str]]:
+    """
+    Filter rows where a column matches a regex pattern using Rust.
+
+    Args:
+        data (List[Dict[str, str]]): List of row dictionaries.
+        column (str): Column name to apply the pattern on.
+        pattern (str): Regular expression pattern to match.
+
+    Returns:
+        List[Dict[str, str]]: Filtered list of dictionaries.
+    """
+    return rustlib.filter_rows(data, column, pattern)
