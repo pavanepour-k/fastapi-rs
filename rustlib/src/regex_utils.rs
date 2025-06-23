@@ -1,41 +1,44 @@
-use regex::Regex;
-use lazy_static::lazy_static;
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
+use regex::Regex;
+use ammonia::clean;
 
-lazy_static! {
-    static ref EMAIL_REGEX: Regex = Regex::new(r"(?i)^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$").unwrap();
-    static ref PHONE_REGEX: Regex = Regex::new(r"^\+?[0-9\-\s]{7,20}$").unwrap();
-    static ref URL_REGEX: Regex = Regex::new(r"(?i)^(https?://)?([A-Z0-9.-]+\.[A-Z]{2,})(/.*)?$").unwrap();
+/// Sanitize HTML by removing harmful tags and attributes.
+#[pyfunction]
+pub fn sanitize_html(input: &str) -> String {
+    clean(input)
 }
 
-/// Validate an email address against a standard regex pattern.
+/// Replace banned words with "[censored]" in a case-insensitive manner.
 #[pyfunction]
-pub fn validate_email(email: &str) -> bool {
-    EMAIL_REGEX.is_match(email)
+pub fn filter_bad_words(text: &str, banned_list: Vec<String>) -> String {
+    let mut result = text.to_string();
+    for word in banned_list {
+        let escaped = regex::escape(&word);
+        let pattern = format!(r"(?i)\b{}\b", escaped);
+        if let Ok(re) = Regex::new(&pattern) {
+            result = re.replace_all(&result, "[censored]").to_string();
+        }
+    }
+    result
 }
 
-/// Validate a phone number (digits, spaces, hyphens, optional leading '+').
+/// Find all occurrences matching a pattern and replace them with replacement.
 #[pyfunction]
-pub fn validate_phone(number: &str) -> bool {
-    PHONE_REGEX.is_match(number)
+pub fn find_and_replace(pattern: &str, text: &str, replacement: &str) -> String {
+    match Regex::new(pattern) {
+        Ok(re) => re.replace_all(text, replacement).to_string(),
+        Err(_) => text.to_string(),
+    }
 }
 
-/// Validate a URL (http/https, domain, optional path).
-#[pyfunction]
-pub fn validate_url(url: &str) -> bool {
-    URL_REGEX.is_match(url)
-}
-
-/// Find all non-overlapping matches of a regex pattern in the given text.
-#[pyfunction]
-pub fn find_pattern_matches(pattern: &str, text: &str) -> Vec<String> {
-    let re = match Regex::new(pattern) {
-        Ok(regex) => regex,
-        Err(_) => return Vec::new(),
-    };
-    re.find_iter(text)
-        .map(|m| m.as_str().to_string())
-        .collect()
+/// Python module initializer for filter utilities.
+#[pymodule]
+pub fn filter(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(sanitize_html, m)?)?;
+    m.add_function(wrap_pyfunction!(filter_bad_words, m)?)?;
+    m.add_function(wrap_pyfunction!(find_and_replace, m)?)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -43,29 +46,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_validate_email() {
-        assert!(validate_email("test@example.com"));
-        assert!(!validate_email("invalid-email"));
+    fn test_sanitize_html() {
+        let html = "<script>alert('XSS')</script><div>Safe</div>";
+        let sanitized = sanitize_html(html);
+        assert!(!sanitized.contains("<script>"));
+        assert!(sanitized.contains("<div>Safe</div>"));
     }
 
     #[test]
-    fn test_validate_phone() {
-        assert!(validate_phone("+1234567890"));
-        assert!(validate_phone("123-456-7890"));
-        assert!(!validate_phone("phone123"));
+    fn test_filter_bad_words() {
+        let banned = vec!["bad".to_string(), "evil".to_string()];
+        let text = "This is bad and EVIL world.";
+        let filtered = filter_bad_words(text, banned);
+        assert!(filtered.contains("[censored] and [censored]"));
     }
 
     #[test]
-    fn test_validate_url() {
-        assert!(validate_url("http://example.com"));
-        assert!(validate_url("https://example.com/path?query=1"));
-        assert!(!validate_url("not a url"));
-    }
-
-    #[test]
-    fn test_find_pattern_matches() {
-        let text = "foo 123 bar 456 baz";
-        let matches = find_pattern_matches(r"\d+", text);
-        assert_eq!(matches, vec!["123".to_string(), "456".to_string()]);
+    fn test_find_and_replace() {
+        let text = "foo foo bar";
+        let replaced = find_and_replace("foo", text, "baz");
+        assert_eq!(replaced, "baz baz bar");
     }
 }
