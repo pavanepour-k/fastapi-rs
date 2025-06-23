@@ -1,5 +1,5 @@
 from typing import List
-import rustlib as rust_mod
+import rustlib
 
 def sanitize_html(input: str) -> str:
     """

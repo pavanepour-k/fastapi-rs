@@ -1,4 +1,4 @@
-import rustlib as rust_mod
+import rustlib
 from typing import List, Tuple
 
 

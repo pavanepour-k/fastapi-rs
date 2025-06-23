@@ -1,4 +1,4 @@
-import rustlib as rust_mod
+import rustlib
 
 
 def gzip_compress(data: bytes, level: int) -> bytes:

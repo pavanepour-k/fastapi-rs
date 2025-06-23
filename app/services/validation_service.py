@@ -1,5 +1,5 @@
 from typing import List
-import rustlib as rust_mod
+import rustlib
 
 def validate_email(email: str) -> bool:
     """
