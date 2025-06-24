@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
-use regex::Regex;
+use pyo3::wrap_pyfunction;
 use ammonia::clean;
+use regex::Regex;
 
 /// Sanitize HTML by removing harmful tags and attributes.
 #[pyfunction]
@@ -22,13 +23,12 @@ pub fn filter_bad_words(text: &str, banned_list: Vec<String>) -> String {
     result
 }
 
-/// Find all occurrences matching a pattern and replace them with replacement.
-#[pyfunction]
-pub fn find_and_replace(pattern: &str, text: &str, replacement: &str) -> String {
-    match Regex::new(pattern) {
-        Ok(re) => re.replace_all(text, replacement).to_string(),
-        Err(_) => text.to_string(),
-    }
+/// Python module initializer for text sanitization and filtering.
+#[pymodule]
+pub fn filter(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(sanitize_html, m)?)?;
+    m.add_function(wrap_pyfunction!(filter_bad_words, m)?)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -48,13 +48,6 @@ mod tests {
         let banned = vec!["bad".to_string(), "evil".to_string()];
         let text = "This is bad and EVIL world.";
         let filtered = filter_bad_words(text, banned);
-        assert!(filtered.contains("[censored] and [censored]"));
-    }
-
-    #[test]
-    fn test_find_and_replace() {
-        let text = "foo foo bar";
-        let replaced = find_and_replace("foo", text, "baz");
-        assert_eq!(replaced, "baz baz bar");
+        assert!(filtered.contains("[censored] and [censored] world."));
     }
 }
