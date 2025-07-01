@@ -1,21 +1,23 @@
 version: 2
 updates:
-  # GitHub Actions
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "daily"
-    commit-message:
-      prefix: "chore"
-  # Python
   - package-ecosystem: "pip"
-    directory: "/"
-    schedule:
-      interval: "monthly"
-    commit-message:
-      prefix: "chore"
-      
-  - package-ecosystem: "pip"
-    directory: "/docs/requirements"
+    directory: "/"  
     schedule:
       interval: "weekly"
+    target-branch: "main" 
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "test" 
+
+  - package-ecosystem: "cargo"
+    directory: "/"  
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "test"
