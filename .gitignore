@@ -195,3 +195,9 @@ cython_debug/
 
 # Docs
 *reference*
+
+# py-dev
+docs/
+rust_src/*
+test/
+*.rs
