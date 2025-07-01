@@ -195,3 +195,4 @@ cython_debug/
 
 # Docs
 *reference*
+tests/
