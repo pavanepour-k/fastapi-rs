@@ -199,5 +199,5 @@ cython_debug/
 # py-dev
 docs/
 rust_src/*
-test/
+tests/
 *.rs

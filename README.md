@@ -27,69 +27,6 @@ fastapi-rs/
 └── tests/                    # Verification suite
 ```
 
-
-## 🚀 Quick Start
-
-FastAPI-RS is a drop-in replacement. Simply install and your existing FastAPI code automatically benefits from Rust performance:
-
-```python
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
-
-app = FastAPI()  # Now powered by Rust under the hood!
-
-@app.get("/users/{user_id}")
-async def get_user(user_id: int, q: str = None):
-    # Path parameter validation now 3.6x faster
-    # JSON response serialization now 5.3x faster
-    return {"user_id": user_id, "query": q}
-
-@app.post("/users/")
-async def create_user(user: dict):
-    # Request body parsing now 3.1x faster
-    return JSONResponse({"created": True})
-```
-
-
-## Security Enhancements
-
-### Constant-Time Operations
-
-```python
-from fastapi.security import constant_time_compare
-
-# Prevents timing attacks
-if constant_time_compare(provided_token, expected_token):
-    # Secure authentication
-    pass
-```
-
-
-### Enhanced Input Validation
-
-```python
-from fastapi import FastAPI, Path, Query
-from fastapi.params import validate_path_params
-
-app = FastAPI()
-
-@app.get("/items/{item_id}")
-async def get_item(
-    item_id: int = Path(..., gt=0, le=1000),  # Now validated in Rust
-    q: str = Query(None, max_length=50)        # Memory-safe string handling
-):
-    return {"item_id": item_id, "q": q}
-```
-
-
-## Testing
-
-```bash
-# Run Python tests
-pytest tests/
-
-```
-
 ## Compatibility
 
 ### Python Versions
@@ -107,8 +44,88 @@ pytest tests/
 -  OpenAPI generation
 -  Automatic documentation
 
+---
 
-## 📄 License
+## Todo
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### params.py
 
+- Schema Dependency
+
+        params_schema.yaml or params_schema.json must exist for correct operation (pay attention to path/format).
+
+        If an endpoint or parameter is missing in the schema, a runtime exception will occur.
+
+- Schema/Class Argument Mapping
+
+        If schema field names differ from the constructor argument names of the Param (and Path/Query, etc.) classes, an exception may be raised or fields may be silently ignored during declaration.
+
+        Fields not present in the schema will be automatically filtered by the factory (which could cause bugs to go unnoticed).
+
+- Parameter Type
+
+        The "in" field must be accurately specified as "query", "path", "header", "cookie", "form", or "file".
+
+- Caching/Reload
+
+        The schema file is read only once at initial load (_loaded_schema caching).
+
+        Changes to the file will not be reflected at runtime; take caution in production/development environments (add hot-reload code if needed).
+
+- Dependency Modules
+
+        Internal modules such as .datastructures, .utils, etc. must exist within the project.
+
+### _rust.py
+
+- Rust Extension File Requirement
+
+        Rust extension files (e.g., _fastapi_rust) must be properly built, distributed, and loadable.
+
+        If missing, a runtime exception will occur (identifiable via exception messages and logging).
+
+- Rust API/Function Name Mismatch
+
+        If Rust function names, argument structures, or return types differ from what Python expects, runtime errors will occur.
+
+        Always synchronize the Python side when updating the Rust extension.
+
+### __init__.py
+
+- Maintaining Public API Paths
+
+        The actual import paths for public modules (such as Param, param_factory, etc.) must exist.
+
+        If internal structure is refactored and import paths change, unintended ImportError may occur.
+
+- Dependency Module Import Errors
+
+        In relative imports (e.g., from .params import ...), errors may occur if the location or name of params.py changes.
+
+        Always verify when packaging or refactoring the directory structure.
+
+### Common/General
+
+- Environment Variable Usage
+
+        If the path is specified using the FASTAPI_PARAMS_SCHEMA environment variable, ensure that the path matches in each deployment environment.
+
+- Differences Between Test and Production
+
+        The schema file, Rust extension, and dependency module paths may differ between production and test environments, so check functionality for each environment.
+
+- Error Handling Policy
+
+        If frequent exceptions occur (such as schema mismatches), make log messages and error details specific to allow clear identification of the cause.
+
+### Other
+
+- Consistency When Extending/Updating the Schema
+
+        When adding new fields, types, or constraints to the schema, you must also update the Python/Rust parser/mapping code.
+
+        If the parsers in the two languages are not kept in sync, real data and validation logic may become inconsistent.
+
+- Caution with Param Constructor Changes
+
+        When upgrading pydantic/FastAPI, constructor arguments for Param/Path/Query, etc. may change, so version-specific management of the schema-to-class mapping code is necessary.
