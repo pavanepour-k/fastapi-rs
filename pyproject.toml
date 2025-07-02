@@ -60,9 +60,8 @@ Issues = "https://github.com/pavanepour-k/fastapi-rs/issues"
 
 [tool.maturin]
 python-source = "."
-module-name = "fastapi._fastapi_rust"
+module-name = "fastapi.rust_src"
 features = ["pyo3/extension-module"]
-compatibility = "manylinux_2_28"
 skip-auditwheel = false
 
 [tool.pytest.ini_options]
@@ -133,5 +132,5 @@ warn_unreachable = true
 strict_equality = true
 
 [[tool.mypy.overrides]]
-module = ["fastapi._fastapi_rust.*"]
+module = ["fastapi.rust_src.*"]
 ignore_missing_imports = true
