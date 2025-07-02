@@ -195,9 +195,3 @@ cython_debug/
 
 # Docs
 *reference*
-
-# rust-dev
-docs/
-fastapi/
-test/
-*.py
