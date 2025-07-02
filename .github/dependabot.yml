@@ -21,3 +21,4 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "test"
+
