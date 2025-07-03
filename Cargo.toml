@@ -38,6 +38,7 @@ mime = "0.3"
 http = "1.1"
 hyper = { version = "1.4", features = ["full"] }
 pyo3-build-config = "0.25.1"
+parking_lot = "0.12"
 
 [dev-dependencies]
 criterion = { version = "0.6.0", features = ["html_reports"] }
@@ -67,17 +68,22 @@ jemalloc = ["dep:jemallocator"]
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
 jemallocator = { version = "0.5", optional = true }
 
-[[bench]]
-name = "routing_bench"
-path = "tests/bench/routing_bench.rs"
-harness = false
+[[test]]
+name = "test_routing"
+path = "tests/rust/unit/test_routing.rs"
 
-[[bench]]
-name = "serialization_bench"
-path = "tests/bench/serialization_bench.rs"
-harness = false
+[[test]]
+name = "test_validation"
+path = "tests/rust/unit/test_validation.rs"
 
-[[bench]]
-name = "validation_bench"
-path = "tests/bench/validation_bench.rs"
-harness = false
+[[test]]
+name = "test_serialization"
+path = "tests/rust/unit/test_serialization.rs"
+
+[[test]]
+name = "test_security"
+path = "tests/rust/unit/test_security.rs"
+
+[[test]]
+name = "test_integration_fastapi"
+path = "tests/rust/integration/test_integration_fastapi.rs"

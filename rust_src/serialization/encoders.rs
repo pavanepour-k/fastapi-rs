@@ -1,12 +1,10 @@
-use bytes::Bytes;
-use chrono::{DateTime, NaiveDateTime, Utc};
 use pyo3::prelude::*;
-use pyo3::types::{
-    PyAny, PyBool, PyBytes, PyDict, PyFloat, PyInt, PyList, PyNone, PyString, PyTuple,
-};
-use serde_json::{Map, Value};
+use pyo3::types::{PyDict, PyList, PyTuple, PyString, PyInt, PyFloat, PyBool, PyNone, PyBytes, PyAny};
+use serde_json::{Value, Map};
 use std::collections::HashMap;
+use chrono::{DateTime, Utc};
 use thiserror::Error;
+use bytes::Bytes;
 
 #[derive(Error, Debug)]
 pub enum EncodingError {
@@ -24,7 +22,8 @@ pub type Result<T> = std::result::Result<T, EncodingError>;
 
 pub fn jsonable_encoder(obj: &Bound<PyAny>) -> Result<String> {
     let value = python_to_json_value(obj, &mut std::collections::HashSet::new())?;
-    serde_json::to_string(&value).map_err(|e| EncodingError::SerializationError(e.to_string()))
+    serde_json::to_string(&value)
+        .map_err(|e| EncodingError::SerializationError(e.to_string()))
 }
 
 pub fn serialize_response(data: &Bound<PyAny>, content_type: Option<&str>) -> Result<Vec<u8>> {
@@ -34,8 +33,7 @@ pub fn serialize_response(data: &Bound<PyAny>, content_type: Option<&str>) -> Re
             Ok(json_str.into_bytes())
         }
         Some("text/plain") => {
-            let text = data
-                .str()
+            let text = data.str()
                 .map_err(|e| EncodingError::SerializationError(e.to_string()))?
                 .to_str()
                 .map_err(|e| EncodingError::SerializationError(e.to_string()))?;
@@ -46,65 +44,60 @@ pub fn serialize_response(data: &Bound<PyAny>, content_type: Option<&str>) -> Re
                 Ok(bytes.as_bytes().to_vec())
             } else {
                 Err(EncodingError::UnsupportedType(
-                    "Expected bytes for octet-stream".to_string(),
+                    "Expected bytes for octet-stream".to_string()
                 ))
             }
         }
-        Some(ct) => Err(EncodingError::UnsupportedType(format!(
-            "Unsupported content type: {}",
-            ct
-        ))),
+        Some(ct) => Err(EncodingError::UnsupportedType(
+            format!("Unsupported content type: {}", ct)
+        )),
     }
 }
 
 fn python_to_json_value(
-    obj: &Bound<PyAny>,
-    visited: &mut std::collections::HashSet<usize>,
+    obj: &Bound<PyAny>, 
+    visited: &mut std::collections::HashSet<usize>
 ) -> Result<Value> {
     // Prevent infinite recursion
     let obj_id = obj.as_ptr() as usize;
     if visited.contains(&obj_id) {
         return Err(EncodingError::CircularReference);
     }
-
+    
     // Handle None
     if obj.is_none() {
         return Ok(Value::Null);
     }
-
+    
     // Handle basic types first for performance
     if let Ok(s) = obj.downcast::<PyString>() {
-        let text = s
-            .to_str()
+        let text = s.to_str()
             .map_err(|e| EncodingError::SerializationError(e.to_string()))?;
         return Ok(Value::String(text.to_string()));
     }
-
+    
     if let Ok(i) = obj.downcast::<PyInt>() {
-        let num = i
-            .extract::<i64>()
+        let num = i.extract::<i64>()
             .map_err(|e| EncodingError::SerializationError(e.to_string()))?;
         return Ok(Value::Number(num.into()));
     }
-
+    
     if let Ok(f) = obj.downcast::<PyFloat>() {
-        let num = f
-            .extract::<f64>()
+        let num = f.extract::<f64>()
             .map_err(|e| EncodingError::SerializationError(e.to_string()))?;
         let json_num = serde_json::Number::from_f64(num)
             .ok_or_else(|| EncodingError::SerializationError("Invalid float value".to_string()))?;
         return Ok(Value::Number(json_num));
     }
-
+    
     if let Ok(b) = obj.downcast::<PyBool>() {
-        let val = b
-            .extract::<bool>()
+        let val = b.extract::<bool>()
             .map_err(|e| EncodingError::SerializationError(e.to_string()))?;
         return Ok(Value::Bool(val));
     }
-
+    
     visited.insert(obj_id);
-
+    
     let result = if let Ok(dict) = obj.downcast::<PyDict>() {
         encode_dict(dict, visited)
     } else if let Ok(list) = obj.downcast::<PyList>() {
@@ -123,24 +116,20 @@ fn python_to_json_value(
         encode_pydantic_model(obj, visited)
     } else {
         // Fallback to string representation
-        let str_repr = obj
-            .str()
+        let str_repr = obj.str()
             .map_err(|e| EncodingError::SerializationError(e.to_string()))?
             .to_str()
             .map_err(|e| EncodingError::SerializationError(e.to_string()))?;
         Ok(Value::String(str_repr.to_string()))
     };
-
+    
     visited.remove(&obj_id);
     result
 }
 
-fn encode_dict(
-    dict: &Bound<PyDict>,
-    visited: &mut std::collections::HashSet<usize>,
-) -> Result<Value> {
+fn encode_dict(dict: &Bound<PyDict>, visited: &mut std::collections::HashSet<usize>) -> Result<Value> {
     let mut map = Map::new();
-
+    
     for (key, value) in dict.iter() {
         let key_str = if let Ok(s) = key.downcast::<PyString>() {
             s.to_str()
@@ -153,39 +142,33 @@ fn encode_dict(
                 .map_err(|e| EncodingError::SerializationError(e.to_string()))?
                 .to_string()
         };
-
+        
         let json_value = python_to_json_value(&value, visited)?;
         map.insert(key_str, json_value);
     }
-
+    
     Ok(Value::Object(map))
 }
 
-fn encode_list(
-    list: &Bound<PyList>,
-    visited: &mut std::collections::HashSet<usize>,
-) -> Result<Value> {
+fn encode_list(list: &Bound<PyList>, visited: &mut std::collections::HashSet<usize>) -> Result<Value> {
     let mut vec = Vec::with_capacity(list.len());
-
+    
     for item in list.iter() {
         let json_value = python_to_json_value(&item, visited)?;
         vec.push(json_value);
     }
-
+    
     Ok(Value::Array(vec))
 }
 
-fn encode_tuple(
-    tuple: &Bound<PyTuple>,
-    visited: &mut std::collections::HashSet<usize>,
-) -> Result<Value> {
+fn encode_tuple(tuple: &Bound<PyTuple>, visited: &mut std::collections::HashSet<usize>) -> Result<Value> {
     let mut vec = Vec::with_capacity(tuple.len());
-
+    
     for item in tuple.iter() {
         let json_value = python_to_json_value(&item, visited)?;
         vec.push(json_value);
     }
-
+    
     Ok(Value::Array(vec))
 }
 
@@ -198,17 +181,15 @@ fn encode_datetime(obj: &Bound<PyAny>) -> Result<Value> {
     Python::with_gil(|py| {
         // Try to get ISO format string
         if let Ok(isoformat) = obj.call_method0("isoformat") {
-            let iso_str = isoformat
-                .str()
+            let iso_str = isoformat.str()
                 .map_err(|e| EncodingError::SerializationError(e.to_string()))?
                 .to_str()
                 .map_err(|e| EncodingError::SerializationError(e.to_string()))?;
             return Ok(Value::String(iso_str.to_string()));
         }
-
+        
         // Fallback to string representation
-        let str_repr = obj
-            .str()
+        let str_repr = obj.str()
             .map_err(|e| EncodingError::SerializationError(e.to_string()))?
             .to_str()
             .map_err(|e| EncodingError::SerializationError(e.to_string()))?;
@@ -216,19 +197,15 @@ fn encode_datetime(obj: &Bound<PyAny>) -> Result<Value> {
     })
 }
 
-fn encode_object_with_dict(
-    obj: &Bound<PyAny>,
-    visited: &mut std::collections::HashSet<usize>,
-) -> Result<Value> {
+fn encode_object_with_dict(obj: &Bound<PyAny>, visited: &mut std::collections::HashSet<usize>) -> Result<Value> {
     if let Ok(dict) = obj.getattr("__dict__") {
         if let Ok(py_dict) = dict.downcast::<PyDict>() {
             return encode_dict(py_dict, visited);
         }
     }
-
+    
     // Fallback to string representation
-    let str_repr = obj
-        .str()
+    let str_repr = obj.str()
         .map_err(|e| EncodingError::SerializationError(e.to_string()))?
         .to_str()
         .map_err(|e| EncodingError::SerializationError(e.to_string()))?;
@@ -239,30 +216,25 @@ fn encode_enum(obj: &Bound<PyAny>) -> Result<Value> {
     if let Ok(value) = obj.getattr("value") {
         return python_to_json_value(&value, &mut std::collections::HashSet::new());
     }
-
+    
     // Fallback to name
     if let Ok(name) = obj.getattr("name") {
         if let Ok(name_str) = name.downcast::<PyString>() {
-            let text = name_str
-                .to_str()
+            let text = name_str.to_str()
                 .map_err(|e| EncodingError::SerializationError(e.to_string()))?;
             return Ok(Value::String(text.to_string()));
         }
     }
-
+    
     // Final fallback to string representation
-    let str_repr = obj
-        .str()
+    let str_repr = obj.str()
         .map_err(|e| EncodingError::SerializationError(e.to_string()))?
         .to_str()
         .map_err(|e| EncodingError::SerializationError(e.to_string()))?;
     Ok(Value::String(str_repr.to_string()))
 }
 
-fn encode_pydantic_model(
-    obj: &Bound<PyAny>,
-    visited: &mut std::collections::HashSet<usize>,
-) -> Result<Value> {
+fn encode_pydantic_model(obj: &Bound<PyAny>, visited: &mut std::collections::HashSet<usize>) -> Result<Value> {
     // Try model_dump() first (Pydantic v2)
     if let Ok(dump_method) = obj.getattr("model_dump") {
         if let Ok(result) = dump_method.call0() {
@@ -271,7 +243,7 @@ fn encode_pydantic_model(
             }
         }
     }
-
+    
     // Try dict() method (Pydantic v1)
     if let Ok(dict_method) = obj.getattr("dict") {
         if let Ok(result) = dict_method.call0() {
@@ -280,7 +252,7 @@ fn encode_pydantic_model(
             }
         }
     }
-
+    
     // Fallback to __dict__
     encode_object_with_dict(obj, visited)
 }
@@ -336,51 +308,41 @@ pub fn encode_bool_fast(b: bool) -> String {
 mod tests {
     use super::*;
     use pyo3::types::PyDict;
-
+    
     #[test]
     fn test_encode_basic_types() {
         Python::with_gil(|py| {
             // String
             let py_str = PyString::new_bound(py, "hello");
-            let result =
-                python_to_json_value(&py_str.as_any(), &mut std::collections::HashSet::new())
-                    .unwrap();
+            let result = python_to_json_value(&py_str.as_any(), &mut std::collections::HashSet::new()).unwrap();
             assert_eq!(result, Value::String("hello".to_string()));
-
+            
             // Integer
             let py_int = PyInt::new_bound(py, 42);
-            let result =
-                python_to_json_value(&py_int.as_any(), &mut std::collections::HashSet::new())
-                    .unwrap();
+            let result = python_to_json_value(&py_int.as_any(), &mut std::collections::HashSet::new()).unwrap();
             assert_eq!(result, Value::Number(42.into()));
-
+            
             // Boolean
             let py_bool = PyBool::new_bound(py, true);
-            let result =
-                python_to_json_value(&py_bool.as_any(), &mut std::collections::HashSet::new())
-                    .unwrap();
+            let result = python_to_json_value(&py_bool.as_any(), &mut std::collections::HashSet::new()).unwrap();
             assert_eq!(result, Value::Bool(true));
-
+            
             // None
             let py_none = PyNone::get_bound(py);
-            let result =
-                python_to_json_value(&py_none.as_any(), &mut std::collections::HashSet::new())
-                    .unwrap();
+            let result = python_to_json_value(&py_none.as_any(), &mut std::collections::HashSet::new()).unwrap();
             assert_eq!(result, Value::Null);
         });
     }
-
+    
     #[test]
     fn test_encode_dict() {
         Python::with_gil(|py| {
             let dict = PyDict::new_bound(py);
             dict.set_item("name", "John").unwrap();
             dict.set_item("age", 30).unwrap();
-
-            let result =
-                python_to_json_value(&dict.as_any(), &mut std::collections::HashSet::new())
-                    .unwrap();
-
+            
+            let result = python_to_json_value(&dict.as_any(), &mut std::collections::HashSet::new()).unwrap();
+            
             if let Value::Object(map) = result {
                 assert_eq!(map.get("name"), Some(&Value::String("John".to_string())));
                 assert_eq!(map.get("age"), Some(&Value::Number(30.into())));
@@ -389,16 +351,14 @@ mod tests {
             }
         });
     }
-
+    
     #[test]
     fn test_encode_list() {
         Python::with_gil(|py| {
             let list = PyList::new_bound(py, &[1, 2, 3]);
-
-            let result =
-                python_to_json_value(&list.as_any(), &mut std::collections::HashSet::new())
-                    .unwrap();
-
+            
+            let result = python_to_json_value(&list.as_any(), &mut std::collections::HashSet::new()).unwrap();
+            
             if let Value::Array(arr) = result {
                 assert_eq!(arr.len(), 3);
                 assert_eq!(arr[0], Value::Number(1.into()));
@@ -407,6 +367,17 @@ mod tests {
             } else {
                 panic!("Expected array");
             }
+        });
+    }
+    
+    #[test]
+    fn test_circular_reference_detection() {
+        Python::with_gil(|py| {
+            let dict = PyDict::new_bound(py);
+            dict.set_item("self", &dict).unwrap();
+            
+            let result = python_to_json_value(&dict.as_any(), &mut std::collections::HashSet::new());
+            assert!(matches!(result, Err(EncodingError::CircularReference)));
         });
     }
 }

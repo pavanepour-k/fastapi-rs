@@ -1,14 +1,9 @@
-//! Data validation logic for FastAPI-RS parameter processing.
-//!
-//! Provides type-safe, extensible validation routines and error types.
-
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde_json::Value;
 use std::collections::HashMap;
 use thiserror::Error;
 
-/// Errors that may occur during parameter validation.
 #[derive(Error, Debug)]
 pub enum ValidationError {
     #[error("Missing required parameter: {0}")]
@@ -41,7 +36,6 @@ pub enum ValidationError {
 
 pub type Result<T> = std::result::Result<T, ValidationError>;
 
-/// Struct representing the outcome of parameter validation.
 #[derive(Debug, Clone)]
 pub struct ValidationResult {
     pub valid: bool,
@@ -50,7 +44,6 @@ pub struct ValidationResult {
 }
 
 impl ValidationResult {
-    /// Create a successful validation result.
     pub fn success(data: HashMap<String, Value>) -> Self {
         Self {
             valid: true,
@@ -58,7 +51,7 @@ impl ValidationResult {
             validated_data: data,
         }
     }
-    /// Create a failure validation result.
+
     pub fn failure(errors: Vec<ValidationError>) -> Self {
         Self {
             valid: false,
@@ -66,14 +59,13 @@ impl ValidationResult {
             validated_data: HashMap::new(),
         }
     }
-    /// Add a validation error.
+
     pub fn add_error(&mut self, error: ValidationError) {
         self.valid = false;
         self.errors.push(error);
     }
 }
 
-/// Describes a parameter's validation schema.
 #[derive(Debug, Clone)]
 pub struct ParameterSchema {
     pub name: String,
@@ -103,66 +95,32 @@ impl ParameterSchema {
             enum_values: None,
         }
     }
-    pub fn required(mut self) -> Self {
-        self.required = true;
-        self
-    }
-    pub fn with_default(mut self, value: Value) -> Self {
-        self.default = Some(value);
-        self
-    }
-    pub fn with_length_range(mut self, min: Option<usize>, max: Option<usize>) -> Self {
-        self.min_length = min;
-        self.max_length = max;
-        self
-    }
-    pub fn with_range(mut self, min: Option<f64>, max: Option<f64>) -> Self {
-        self.minimum = min;
-        self.maximum = max;
-        self
-    }
-    pub fn with_pattern(mut self, pattern: String) -> Self {
-        self.pattern = Some(pattern);
-        self
-    }
-    pub fn with_enum(mut self, values: Vec<String>) -> Self {
-        self.enum_values = Some(values);
-        self
-    }
 }
 
-/// Precompiled regular expressions for email and uuid validation.
-static EMAIL_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap());
+static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap()
+});
+
 static UUID_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$").unwrap()
 });
 
-/// Validate path parameters using a schema.
 pub fn validate_path_params(
     params: HashMap<String, String>,
     schema: HashMap<String, Value>,
 ) -> Result<ValidationResult> {
     let schemas = parse_schema_map(schema)?;
-    validate_parameters(
-        params.into_iter().map(|(k, v)| (k, vec![v])).collect(),
-        schemas,
-    )
+    validate_parameters(params.into_iter().map(|(k, v)| (k, vec![v])).collect(), schemas)
 }
 
-/// Validate query parameters using a schema.
 pub fn validate_query_params(
     params: HashMap<String, String>,
     schema: HashMap<String, Value>,
 ) -> Result<ValidationResult> {
     let schemas = parse_schema_map(schema)?;
-    validate_parameters(
-        params.into_iter().map(|(k, v)| (k, vec![v])).collect(),
-        schemas,
-    )
+    validate_parameters(params.into_iter().map(|(k, v)| (k, vec![v])).collect(), schemas)
 }
 
-/// Validate header parameters using a schema.
 pub fn validate_header_params(
     headers: HashMap<String, String>,
     schema: HashMap<String, Value>,
@@ -175,20 +133,22 @@ pub fn validate_header_params(
     validate_parameters(normalized_headers, schemas)
 }
 
-/// Validate body parameters (JSON) using a schema.
 pub fn validate_body_params(
     body: Vec<u8>,
     schema: HashMap<String, Value>,
 ) -> Result<ValidationResult> {
-    let body_str = std::str::from_utf8(&body).map_err(|_| ValidationError::InvalidFormat {
-        param: "body".to_string(),
-        value: "Invalid UTF-8".to_string(),
-    })?;
-    let json_value: Value =
-        serde_json::from_str(body_str).map_err(|_| ValidationError::InvalidFormat {
+    let body_str = std::str::from_utf8(&body)
+        .map_err(|_| ValidationError::InvalidFormat {
+            param: "body".to_string(),
+            value: "Invalid UTF-8".to_string(),
+        })?;
+    
+    let json_value: Value = serde_json::from_str(body_str)
+        .map_err(|_| ValidationError::InvalidFormat {
             param: "body".to_string(),
             value: "Invalid JSON".to_string(),
         })?;
+    
     validate_json_against_schema(json_value, schema)
 }
 
@@ -197,15 +157,14 @@ fn validate_parameters(
     schemas: Vec<ParameterSchema>,
 ) -> Result<ValidationResult> {
     let mut result = ValidationResult::success(HashMap::new());
+    
     for schema in schemas {
         match params.get(&schema.name) {
             Some(values) if !values.is_empty() => {
-                let value = &values[0]; // Only the first value
+                let value = &values[0];
                 match validate_single_parameter(value, &schema) {
                     Ok(validated_value) => {
-                        result
-                            .validated_data
-                            .insert(schema.name.clone(), validated_value);
+                        result.validated_data.insert(schema.name.clone(), validated_value);
                     }
                     Err(error) => {
                         result.add_error(error);
@@ -221,62 +180,65 @@ fn validate_parameters(
             }
         }
     }
+    
     Ok(result)
 }
 
 fn validate_single_parameter(value: &str, schema: &ParameterSchema) -> Result<Value> {
-    let converted_value =
-        match schema.param_type.as_str() {
-            "string" | "str" => Value::String(value.to_string()),
-            "integer" | "int" => value.parse::<i64>().map(Value::Number).map_err(|_| {
-                ValidationError::InvalidType {
+    let converted_value = match schema.param_type.as_str() {
+        "string" | "str" => Value::String(value.to_string()),
+        "integer" | "int" => {
+            value.parse::<i64>()
+                .map(Value::Number)
+                .map_err(|_| ValidationError::InvalidType {
                     param: schema.name.clone(),
                     expected: "integer".to_string(),
                     actual: value.to_string(),
-                }
-            })?,
-            "number" | "float" => value
-                .parse::<f64>()
+                })?
+        }
+        "number" | "float" => {
+            value.parse::<f64>()
                 .map(|f| Value::Number(serde_json::Number::from_f64(f).unwrap()))
                 .map_err(|_| ValidationError::InvalidType {
                     param: schema.name.clone(),
                     expected: "number".to_string(),
                     actual: value.to_string(),
-                })?,
-            "boolean" | "bool" => match value.to_lowercase().as_str() {
+                })?
+        }
+        "boolean" | "bool" => {
+            match value.to_lowercase().as_str() {
                 "true" | "1" | "yes" | "on" => Value::Bool(true),
                 "false" | "0" | "no" | "off" => Value::Bool(false),
-                _ => {
-                    return Err(ValidationError::InvalidType {
-                        param: schema.name.clone(),
-                        expected: "boolean".to_string(),
-                        actual: value.to_string(),
-                    })
-                }
-            },
-            "email" => {
-                if EMAIL_REGEX.is_match(value) {
-                    Value::String(value.to_string())
-                } else {
-                    return Err(ValidationError::InvalidFormat {
-                        param: schema.name.clone(),
-                        value: value.to_string(),
-                    });
-                }
+                _ => return Err(ValidationError::InvalidType {
+                    param: schema.name.clone(),
+                    expected: "boolean".to_string(),
+                    actual: value.to_string(),
+                }),
             }
-            "uuid" => {
-                if UUID_REGEX.is_match(value) {
-                    Value::String(value.to_string())
-                } else {
-                    return Err(ValidationError::InvalidFormat {
-                        param: schema.name.clone(),
-                        value: value.to_string(),
-                    });
-                }
+        }
+        "email" => {
+            if EMAIL_REGEX.is_match(value) {
+                Value::String(value.to_string())
+            } else {
+                return Err(ValidationError::InvalidFormat {
+                    param: schema.name.clone(),
+                    value: value.to_string(),
+                });
             }
-            _ => Value::String(value.to_string()),
-        };
-    /// String length
+        }
+        "uuid" => {
+            if UUID_REGEX.is_match(value) {
+                Value::String(value.to_string())
+            } else {
+                return Err(ValidationError::InvalidFormat {
+                    param: schema.name.clone(),
+                    value: value.to_string(),
+                });
+            }
+        }
+        _ => Value::String(value.to_string()),
+    };
+    
     if let Value::String(s) = &converted_value {
         if let Some(min_len) = schema.min_length {
             if s.len() < min_len {
@@ -287,6 +249,7 @@ fn validate_single_parameter(value: &str, schema: &ParameterSchema) -> Result<Va
                 });
             }
         }
+        
         if let Some(max_len) = schema.max_length {
             if s.len() > max_len {
                 return Err(ValidationError::TooLong {
@@ -296,12 +259,13 @@ fn validate_single_parameter(value: &str, schema: &ParameterSchema) -> Result<Va
                 });
             }
         }
-        /// Pattern
+        
         if let Some(pattern) = &schema.pattern {
             let regex = Regex::new(pattern).map_err(|_| ValidationError::InvalidFormat {
                 param: schema.name.clone(),
                 value: format!("Invalid regex pattern: {}", pattern),
             })?;
+            
             if !regex.is_match(s) {
                 return Err(ValidationError::PatternMismatch {
                     param: schema.name.clone(),
@@ -309,7 +273,7 @@ fn validate_single_parameter(value: &str, schema: &ParameterSchema) -> Result<Va
                 });
             }
         }
-        // Enum
+        
         if let Some(enum_values) = &schema.enum_values {
             if !enum_values.contains(s) {
                 return Err(ValidationError::InvalidFormat {
@@ -319,9 +283,10 @@ fn validate_single_parameter(value: &str, schema: &ParameterSchema) -> Result<Va
             }
         }
     }
-    /// Number range
+    
     if let Value::Number(n) = &converted_value {
         let num_value = n.as_f64().unwrap_or(0.0);
+        
         if let Some(min) = schema.minimum {
             if num_value < min {
                 return Err(ValidationError::OutOfRange {
@@ -330,6 +295,7 @@ fn validate_single_parameter(value: &str, schema: &ParameterSchema) -> Result<Va
                 });
             }
         }
+        
         if let Some(max) = schema.maximum {
             if num_value > max {
                 return Err(ValidationError::OutOfRange {
@@ -339,6 +305,7 @@ fn validate_single_parameter(value: &str, schema: &ParameterSchema) -> Result<Va
             }
         }
     }
+    
     Ok(converted_value)
 }
 
@@ -353,38 +320,46 @@ fn validate_json_against_schema(
 
 fn parse_schema_map(schema: HashMap<String, Value>) -> Result<Vec<ParameterSchema>> {
     let mut schemas = Vec::new();
+    
     for (name, spec) in schema {
         if let Value::Object(spec_obj) = spec {
-            let param_type = spec_obj
-                .get("type")
+            let param_type = spec_obj.get("type")
                 .and_then(|v| v.as_str())
                 .unwrap_or("string")
                 .to_string();
+            
             let mut param_schema = ParameterSchema::new(name, param_type);
+            
             if let Some(Value::Bool(required)) = spec_obj.get("required") {
                 param_schema.required = *required;
             }
+            
             if let Some(default) = spec_obj.get("default") {
                 param_schema.default = Some(default.clone());
             }
+            
             if let Some(Value::Number(min_len)) = spec_obj.get("minLength") {
                 param_schema.min_length = min_len.as_u64().map(|n| n as usize);
             }
+            
             if let Some(Value::Number(max_len)) = spec_obj.get("maxLength") {
                 param_schema.max_length = max_len.as_u64().map(|n| n as usize);
             }
+            
             if let Some(Value::Number(min)) = spec_obj.get("minimum") {
                 param_schema.minimum = min.as_f64();
             }
+            
             if let Some(Value::Number(max)) = spec_obj.get("maximum") {
                 param_schema.maximum = max.as_f64();
             }
+            
             if let Some(Value::String(pattern)) = spec_obj.get("pattern") {
                 param_schema.pattern = Some(pattern.clone());
             }
+            
             if let Some(Value::Array(enum_vals)) = spec_obj.get("enum") {
-                let enum_strings: Vec<String> = enum_vals
-                    .iter()
+                let enum_strings: Vec<String> = enum_vals.iter()
                     .filter_map(|v| v.as_str())
                     .map(|s| s.to_string())
                     .collect();
@@ -392,8 +367,10 @@ fn parse_schema_map(schema: HashMap<String, Value>) -> Result<Vec<ParameterSchem
                     param_schema.enum_values = Some(enum_strings);
                 }
             }
+            
             schemas.push(param_schema);
         }
     }
+    
     Ok(schemas)
 }
