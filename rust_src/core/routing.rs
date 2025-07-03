@@ -139,4 +139,4 @@ fn get_or_compile_regex(pattern: &str) -> Result<Arc<Regex>> {
 }
 
 #[derive(Default)]
-pub struct RouteTree {
+pub struct RouteTree {}

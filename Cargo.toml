@@ -12,7 +12,6 @@ categories = ["web-programming", "asynchronous"]
 readme = "README.md"
 
 [lib]
-name = "lib.rs"
 path = "rust_src/lib.rs"
 crate-type = ["cdylib"]
 
@@ -38,6 +37,7 @@ percent-encoding = "2.3"
 mime = "0.3"
 http = "1.1"
 hyper = { version = "1.4", features = ["full"] }
+pyo3-build-config = "0.25.1"
 
 [dev-dependencies]
 criterion = { version = "0.6.0", features = ["html_reports"] }
@@ -60,7 +60,7 @@ debug = true
 overflow-checks = true
 
 [features]
-default = ["simd"]
+default = []
 simd = []
 jemalloc = ["dep:jemallocator"]
 
@@ -69,15 +69,15 @@ jemallocator = { version = "0.5", optional = true }
 
 [[bench]]
 name = "routing_bench"
-path = "tests/bench"
+path = "tests/bench/routing_bench.rs"
 harness = false
 
 [[bench]]
 name = "serialization_bench"
-path = "tests/bench"
+path = "tests/bench/serialization_bench.rs"
 harness = false
 
 [[bench]]
 name = "validation_bench"
-path = "tests/bench"
+path = "tests/bench/validation_bench.rs"
 harness = false
