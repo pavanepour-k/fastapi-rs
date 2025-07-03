@@ -12,11 +12,11 @@ categories = ["web-programming", "asynchronous"]
 readme = "README.md"
 
 [lib]
-name = "_fastapi_rust"
+name = "lib.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.22", features = ["extension-module", "abi3-py38"] }
+pyo3 = { version = "0.25.1", features = ["extension-module", "abi3-py38"] }
 tokio = { version = "1.40", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -28,7 +28,7 @@ bytes = "1.7"
 memchr = "2.7"
 smallvec = { version = "1.13", features = ["const_generics"] }
 arrayvec = "0.7"
-thiserror = "1.0"
+thiserror = "2.0.12"
 anyhow = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.10", features = ["v4", "serde"] }
@@ -39,12 +39,12 @@ http = "1.1"
 hyper = { version = "1.4", features = ["full"] }
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.6.0", features = ["html_reports"] }
 proptest = "1.4"
 tokio-test = "0.4"
 
 [build-dependencies]
-pyo3-build-config = "0.22"
+pyo3-build-config = "0.25.1"
 
 [profile.release]
 opt-level = 3

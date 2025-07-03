@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "fastapi-rs"
 version = "0.1.0"
 description = "High-performance Rust implementation for FastAPI core components"
-authors = [{ name = "pavanepour.k", email = "pavanepour.k@example.com" }]
+authors = [{ name = "pavanepour.k", email = "pavanepour.k@outlook.com" }]
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.8"
@@ -60,13 +60,12 @@ Issues = "https://github.com/pavanepour-k/fastapi-rs/issues"
 
 [tool.maturin]
 python-source = "."
-module-name = "fastapi._fastapi_rust"
+module-name = "fastapi._rust"
 features = ["pyo3/extension-module"]
-compatibility = "manylinux_2_28"
 skip-auditwheel = false
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests/python"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -133,5 +132,5 @@ warn_unreachable = true
 strict_equality = true
 
 [[tool.mypy.overrides]]
-module = ["fastapi._fastapi_rust.*"]
+module = ["fastapi._rust.*"]
 ignore_missing_imports = true

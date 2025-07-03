@@ -199,5 +199,7 @@ cython_debug/
 # py-dev
 docs/
 rust_src/*
-tests/
 *.rs
+build.rs
+Cargo*
+tests/rust
