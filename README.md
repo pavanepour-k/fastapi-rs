@@ -2,7 +2,7 @@
 
 High-performance Rust implementation for FastAPI core components, providing 3-5x performance improvements while maintaining 100% API compatibility.
 
-## 🚀 Features
+## Features (In progress)
 
 - **High Performance**: 3-5x faster routing, parameter validation, and JSON serialization
 - **Memory Safe**: Rust's borrow checker eliminates memory safety issues
@@ -10,141 +10,126 @@ High-performance Rust implementation for FastAPI core components, providing 3-5x
 - **100% Compatible**: Drop-in replacement for FastAPI core components
 - **Zero Breaking Changes**: Maintains identical Python API surface
 
-## 📊 Performance Improvements
+## Performance Improvements
 
-| Operation | Python (ms) | Rust (ms) | Improvement |
-|-----------|-------------|-----------|-------------|
-| JSON Serialization (10k objects) | 42.7 | 8.1 | 5.3x faster |
-| Path Parameter Validation | 15.3 | 4.2 | 3.6x faster |
-| 100-route Registration | 28.9 | 6.7 | 4.3x faster |
-| OAuth2 Token Verification | 9.8 | 2.1 | 4.7x faster |
-| Multipart Form Parsing (10MB) | 127.4 | 41.2 | 3.1x faster |
 
-## 🏗️ Architecture
 
-```
+## Architecture
+
+```Python
 fastapi-rs/
-├── fastapi/                    # Python interface layer (100% API compatible)
-│   ├── _rust.py               # Python-Rust bridge module
-│   ├── routing.py             # Routes to Rust core
-│   ├── params.py              # Routes to Rust params
-│   ├── encoders.py            # Routes to Rust serialization
-│   └── utils.py               # Routes to Rust utilities
-├── rust_src/                  # High-performance Rust implementation
-│   ├── core/                  # Request lifecycle core
-│   │   ├── routing.rs         # Endpoint routing/dispatch
-│   │   └── request.rs         # Request processing
-│   ├── params/                # Parameter processing
-│   │   ├── validation.rs      # Data validation logic
-│   │   ├── query.rs           # Query param handling
-│   │   └── path.rs            # Path param handling
-│   ├── serialization/         # Data transformation
-│   │   ├── encoders.rs        # JSON serialization
-│   │   └── decoders.rs        # Request body deserialization
-│   ├── security/              # Security implementations
-│   │   ├── utils.rs           # Auth helpers
-│   │   └── oauth2.rs          # OAuth2 flows
-│   └── utils/                 # Shared utilities
-└── tests/                     # Verification suite
+├── fastapi/                  # Python interface layer (100% API compatible)
+│   ├── __init__.py
+│   ├── _rust.py              # Python-Rust bridge module
+│   ├── applications.py       # (Python) ASGI app lifecycle
+│   ├── websockets.py         # (Python) WebSocket support
+│   ├── routing.py            # (Python wrapper) Routes to Rust core
+│   ├── encoders.py           # (Python wrapper) Routes to Rust serialization
+│   ├── utils.py              # (Python wrapper) Routes to Rust utilities
+│   │
+│   ├── params/               # Params subsystem
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── cookie.py         # (Python)
+│   │   ├── file.py           # (Python)
+│   │   ├── form.py           # (Python)
+│   │   ├── header.py         # (Python)
+│   │   ├── body.py           # (Python wrapper) Routes to Rust params: Request body processing
+│   │   ├── path.py           # (Python wrapper) Routes to Rust params: Path param handling
+│   │   └── query.py          # (Python wrapper) Routes to Rust params: Query param handling
+│   │
+│   ├── security/             # Security subsystem
+│   │   ├── __init__.py
+│   │   ├── api_key.py        # (Python) API key auth
+│   │   └── utils.py          # (Python wrapper) Routes to Rust security
+│   │
+│   ├── dependencies/         # (Python) Dependency injection
+│   ├── openapi/              # (Python) OpenAPI schema generation
+│   └── middleware/           # (Python) Middleware implementations
+
 ```
 
-## 🔧 Installation
-
-### From PyPI (Recommended)
-
-```bash
-pip install fastapi-rs
+```Rust
+fastapi-rs/
+├── rust_src/                 /// High-performance Rust implementation
+│   ├── core/                 // Request lifecycle core
+│   │   ├── mod.rs
+│   │   ├── routing.rs        // Endpoint routing/dispatch
+│   │   └── request.rs        // Request processing
+│   │
+│   ├── params/               // Parameter processing
+│   │   ├── mod.rs
+│   │   ├── validation.rs     // Data validation logic
+│   │   ├── query.rs          // Query param handling
+│   │   ├── path.rs           // Path param handling
+│   │   └── body.rs           // Request body processing
+│   │
+│   ├── serialization/        // Data transformation
+│   │   ├── mod.rs
+│   │   ├── encoders.rs       // JSON serialization
+│   │   └── decoders.rs       // Request body deserialization
+│   │
+│   ├── security/             // Security implementations
+│   │   ├── mod.rs
+│   │   ├── utils.rs          // Auth helpers
+│   │   └── oauth2.rs         // OAuth2 flows
+│   │
+│   ├── utils/                // Shared utilities
+│   │   ├── mod.rs
+│   │   ├── async_tools.rs    // Async utilities
+│   │   └── type_conv.rs      // Python-Rust type conversion
+│   │
+│   ├── types/                // Type system
+│   │   ├── mod.rs
+│   │   └── models.rs         // Pydantic model equivalents
+│   │
+│   ├── lib.rs                // Rust entry point
+│   └── python_bindings.rs    // PyO3 interface definitions
 ```
 
-### From Source
-
-```bash
-# Install Rust toolchain
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Install maturin for building
-pip install maturin
-
-# Clone and build
-git clone https://github.com/pavanepour-k/fastapi-rs.git
-cd fastapi-rs
-maturin develop --release
+```
+├── tests/                                  # Verification suite
+│   ├── rust/
+│   │   ├── common/
+│   │   │   └── mod.rs                      # Shared utilities & mocks
+│   │   ├── unit/
+│   │   │   ├── test_routing.rs             # Route creation & matching
+│   │   │   ├── test_validation.rs          # Parameter validation
+│   │   │   ├── test_serialization.rs       # JSON/multipart processing  
+│   │   │   └── test_security.rs            # OAuth2 & security
+│   │   │
+│   │   ├── integration/
+│   │   │   └── test_integration_fastapi.rs # End-to-end pipeline
+│   │   └── bench/
+│   │       └── ...
+│   │
+│   └── python/                             # Module-level tests
+│       ├── ...                             # Rust unit tests
+│       └── bench/                          # Python interface tests
+│
+├── build.rs                  # Rust build script
+├── Cargo.toml                # Rust dependencies
+└── pyproject.toml            # Python packaging
 ```
 
-## 🚀 Quick Start
 
-FastAPI-RS is a drop-in replacement. Simply install and your existing FastAPI code automatically benefits from Rust performance:
-
-```python
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
-
-app = FastAPI()  # Now powered by Rust under the hood!
-
-@app.get("/users/{user_id}")
-async def get_user(user_id: int, q: str = None):
-    # Path parameter validation now 3.6x faster
-    # JSON response serialization now 5.3x faster
-    return {"user_id": user_id, "query": q}
-
-@app.post("/users/")
-async def create_user(user: dict):
-    # Request body parsing now 3.1x faster
-    return JSONResponse({"created": True})
-```
-
-## 🔒 Security Enhancements
-
-### Constant-Time Operations
-
-```python
-from fastapi.security import constant_time_compare
-
-# Prevents timing attacks
-if constant_time_compare(provided_token, expected_token):
-    # Secure authentication
-    pass
-```
-
-### Memory Safety
-
-- Zero buffer overflows (guaranteed at compile-time)
-- No use-after-free vulnerabilities
-- Automatic bounds checking on all operations
-
-### Enhanced Input Validation
-
-```python
-from fastapi import FastAPI, Path, Query
-from fastapi.params import validate_path_params
-
-app = FastAPI()
-
-@app.get("/items/{item_id}")
-async def get_item(
-    item_id: int = Path(..., gt=0, le=1000),  # Now validated in Rust
-    q: str = Query(None, max_length=50)        # Memory-safe string handling
-):
-    return {"item_id": item_id, "q": q}
-```
-
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run Python tests
-pytest tests/
+pytest tests/python/
 
 # Run Rust tests
-cargo test
+cargo test/rust/
 
 # Run benchmarks
-pytest tests/bench/ --benchmark-only
+pytest tests/python/bench/ --benchmark-only
 
 # Performance comparison
-python scripts/benchmark_comparison.py
+python tests/benchmark_comparison.py
 ```
 
-## 📈 Benchmarking
+## Benchmarking
 
 To verify performance improvements on your system:
 
@@ -159,7 +144,7 @@ python -m pytest tests/benchmarks/ -v --benchmark-compare
 python scripts/memory_benchmark.py
 ```
 
-## 🛠️ Development
+## Development
 
 ### Building from Source
 
@@ -190,7 +175,7 @@ black fastapi/
 mypy fastapi/
 ```
 
-## 🔍 Compatibility
+## Compatibility
 
 ### Python Versions
 - Python 3.8+
@@ -213,7 +198,7 @@ mypy fastapi/
 - ✅ OpenAPI generation
 - ✅ Automatic documentation
 
-## 🤝 Contributing
+## Contributing
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
@@ -224,22 +209,18 @@ Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 3. Install pre-commit hooks: `pre-commit install`
 4. Run tests: `pytest` and `cargo test`
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🏆 Acknowledgments
+## Acknowledgments
 
 - [FastAPI](https://fastapi.tiangolo.com/) - The amazing Python web framework this project enhances
 - [PyO3](https://pyo3.rs/) - Python bindings for Rust
 - [Maturin](https://github.com/PyO3/maturin) - Build tool for Python extensions in Rust
 
-## 📞 Support
+## Support
 
-- 📖 [Documentation](https://github.com/pavanepour-k/fastapi-rs/docs)
-- 🐛 [Issue Tracker](https://github.com/pavanepour-k/fastapi-rs/issues)
-- 💬 [Discussions](https://github.com/pavanepour-k/fastapi-rs/discussions)
-
----
-
-**FastAPI-RS** - Bringing Rust's performance and safety to Python's most loved web framework.
+- [Documentation](https://github.com/pavanepour-k/fastapi-rs/docs)
+- [Issue Tracker](https://github.com/pavanepour-k/fastapi-rs/issues)
+- [Discussions](https://github.com/pavanepour-k/fastapi-rs/discussions)
