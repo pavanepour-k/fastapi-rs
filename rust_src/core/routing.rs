@@ -1,7 +1,4 @@
 //! High-performance routing module for FastAPI-RS.
-//!
-//! Provides zero-copy path parsing, efficient route matching, and thread-safe
-//! route compilation with caching.
 
 use ahash::AHashMap;
 use anyhow::{Context, Result};
@@ -27,7 +24,7 @@ pub enum RoutingError {
     RegexError(#[from] regex::Error),
 }
 
-type Result<T> = std::result::Result<T, RoutingError>;
+type RoutingResult<T> = std::result::Result<T, RoutingError>;
 
 static PATH_PARAM_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-zA-Z_]+))?\}").unwrap()
@@ -67,7 +64,7 @@ impl APIRoute {
         self
     }
 
-    pub fn compile(&mut self) -> Result<()> {
+    pub fn compile(&mut self) -> RoutingResult<()> {
         let (pattern, param_names, path_format) = compile_path_pattern(&self.path)?;
         self.path_regex = Some(pattern);
         self.param_names = param_names.into_vec();
@@ -97,97 +94,6 @@ impl APIRoute {
     }
 }
 
-pub fn create_api_route(path: &str, methods: Vec<&str>, name: Option<&str>) -> Result<APIRoute> {
-    let mut route = APIRoute::new(
-        path.to_string(),
-        methods.iter().map(|m| m.to_uppercase()).collect(),
-    );
-
-    if let Some(n) = name {
-        route = route.with_name(n.to_string());
-    }
-
-    route.compile()?;
-    Ok(route)
-}
-
-pub fn match_route<'a>(
-    path: &str,
-    method: &str,
-    routes: &'a [APIRoute],
-) -> Option<(usize, AHashMap<String, String>)> {
-    for (index, route) in routes.iter().enumerate() {
-        if let Some(params) = route.matches(path, method) {
-            return Some((index, params));
-        }
-    }
-    None
-}
-
-pub fn compile_path_regex(path: &str) -> Result<String> {
-    let (pattern, _, _) = compile_path_pattern(path)?;
-    Ok(pattern)
-}
-
-fn compile_path_pattern(path: &str) -> Result<(String, SmallVec<[String; 4]>, String)> {
-    if !path.starts_with('/') {
-        return Err(RoutingError::InvalidPath("Path must start with '/'".to_string()));
-    }
-    
-    let mut pattern = String::with_capacity(path.len() * 2);
-    let mut param_names = SmallVec::new();
-    let mut path_format = String::with_capacity(path.len());
-    let mut last_end = 0;
-    
-    pattern.push('^');
-    
-    for cap in PATH_PARAM_REGEX.captures_iter(path) {
-        let full_match = cap.get(0).unwrap();
-        let param_name = cap.get(1).unwrap().as_str();
-        let param_type = cap.get(2).map(|m| m.as_str()).unwrap_or("str");
-        
-        pattern.push_str(&regex::escape(&path[last_end..full_match.start()]));
-        path_format.push_str(&path[last_end..full_match.start()]);
-        
-        let regex_part = match param_type {
-            "int" => r"([0-9]+)",
-            "float" => r"([0-9]*\.?[0-9]+)",
-            "uuid" => r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
-            "path" => r"(.+)",
-            "str" | _ => r"([^/]+)",
-        };
-        
-        pattern.push_str(regex_part);
-        path_format.push('{');
-        path_format.push_str(param_name);
-        path_format.push('}');
-        param_names.push(param_name.to_string());
-        
-        last_end = full_match.end();
-    }
-    
-    pattern.push_str(&regex::escape(&path[last_end..]));
-    path_format.push_str(&path[last_end..]);
-    pattern.push('$');
-    
-    Ok((pattern, param_names, path_format))
-}
-
-fn get_or_compile_regex(pattern: &str) -> Result<Arc<Regex>> {
-    if let Some(cached) = REGEX_CACHE.read().get(pattern) {
-        return Ok(cached.clone());
-    }
-    
-    let mut cache = REGEX_CACHE.write();
-    if let Some(cached) = cache.get(pattern) {
-        return Ok(cached.clone());
-    }
-    
-    let regex = Arc::new(Regex::new(pattern)?);
-    cache.insert(pattern.to_string(), regex.clone());
-    Ok(regex)
-}
-
 #[derive(Default)]
 pub struct RouteTree {
     routes: Vec<APIRoute>,
@@ -200,7 +106,7 @@ impl RouteTree {
         Self::default()
     }
 
-    pub fn add_route(&mut self, mut route: APIRoute) -> Result<()> {
+    pub fn add_route(&mut self, mut route: APIRoute) -> RoutingResult<()> {
         route.compile()?;
         
         let index = self.routes.len();
@@ -245,6 +151,148 @@ impl RouteTree {
     pub fn all_routes(&self) -> &[APIRoute] {
         &self.routes
     }
+}
+
+pub fn create_api_route(path: &str, methods: Vec<&str>, name: Option<&str>) -> RoutingResult<APIRoute> {
+    let mut route = APIRoute::new(
+        path.to_string(),
+        methods.iter().map(|m| m.to_uppercase()).collect(),
+    );
+
+    if let Some(n) = name {
+        route = route.with_name(n.to_string());
+    }
+
+    route.compile()?;
+    Ok(route)
+}
+
+pub fn match_route<'a>(
+    path: &str,
+    method: &str,
+    routes: &'a [APIRoute],
+) -> Option<(usize, AHashMap<String, String>)> {
+    for (index, route) in routes.iter().enumerate() {
+        if let Some(params) = route.matches(path, method) {
+            return Some((index, params));
+        }
+    }
+    None
+}
+
+pub fn compile_path_regex(path: &str) -> RoutingResult<String> {
+    let (pattern, _, _) = compile_path_pattern(path)?;
+    Ok(pattern)
+}
+
+fn compile_path_pattern(path: &str) -> RoutingResult<(String, SmallVec<[String; 4]>, String)> {
+    if !path.starts_with('/') {
+        return Err(RoutingError::InvalidPath("Path must start with '/'".to_string()));
+    }
+    
+    let mut pattern = String::with_capacity(path.len() * 2);
+    let mut param_names = SmallVec::new();
+    let mut path_format = String::with_capacity(path.len());
+    let mut last_end = 0;
+    
+    pattern.push('^');
+    
+    for cap in PATH_PARAM_REGEX.captures_iter(path) {
+        let full_match = cap.get(0).unwrap();
+        let param_name = cap.get(1).unwrap().as_str();
+        let param_type = cap.get(2).map(|m| m.as_str()).unwrap_or("str");
+        
+        pattern.push_str(&regex::escape(&path[last_end..full_match.start()]));
+        path_format.push_str(&path[last_end..full_match.start()]);
+        
+        let regex_part = match param_type {
+            "int" => r"([0-9]+)",
+            "float" => r"([0-9]*\.?[0-9]+)",
+            "uuid" => r"([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
+            "path" => r"(.+)",
+            "str" | _ => r"([^/]+)",
+        };
+        
+        pattern.push_str(regex_part);
+        path_format.push('{');
+        path_format.push_str(param_name);
+        path_format.push('}');
+        param_names.push(param_name.to_string());
+        
+        last_end = full_match.end();
+    }
+    
+    pattern.push_str(&regex::escape(&path[last_end..]));
+    path_format.push_str(&path[last_end..]);
+    pattern.push('
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_path_pattern_compilation() {
+        let cases = vec![
+            ("/users", r"^/users$", vec![], "/users"),
+            ("/users/{id}", r"^/users/([^/]+)$", vec!["id"], "/users/{id}"),
+            ("/users/{id:int}", r"^/users/([0-9]+)$", vec!["id"], "/users/{id}"),
+            ("/files/{path:path}", r"^/files/(.+)$", vec!["path"], "/files/{path}"),
+        ];
+
+        for (path, expected_pattern, expected_params, expected_format) in cases {
+            let (pattern, params, format) = compile_path_pattern(path).unwrap();
+            assert_eq!(pattern, expected_pattern);
+            assert_eq!(params.into_vec(), expected_params);
+            assert_eq!(format, expected_format);
+        }
+    }
+
+    #[test]
+    fn test_route_matching() {
+        let mut route = APIRoute::new("/users/{id:int}".to_string(), vec!["GET".to_string()]);
+        route.compile().unwrap();
+
+        assert!(route.matches("/users/123", "GET").is_some());
+        assert!(route.matches("/users/abc", "GET").is_none());
+        assert!(route.matches("/users/123", "POST").is_none());
+    }
+
+    #[test]
+    fn test_route_tree() {
+        let mut tree = RouteTree::new();
+        
+        let route1 = create_api_route("/users", vec!["GET"], None).unwrap();
+        let route2 = create_api_route("/users/{id:int}", vec!["GET", "PUT"], None).unwrap();
+        
+        tree.add_route(route1).unwrap();
+        tree.add_route(route2).unwrap();
+        
+        let (index, params) = tree.match_route("/users", "GET").unwrap();
+        assert_eq!(index, 0);
+        assert!(params.is_empty());
+        
+        let (index, params) = tree.match_route("/users/123", "GET").unwrap();
+        assert_eq!(index, 1);
+        assert_eq!(params.get("id").unwrap(), "123");
+    }
+});
+    
+    Ok((pattern, param_names, path_format))
+}
+
+pub fn get_or_compile_regex(pattern: &str) -> RoutingResult<Arc<Regex>> {
+    if let Some(cached) = REGEX_CACHE.read().get(pattern) {
+        return Ok(cached.clone());
+    }
+    
+    let mut cache = REGEX_CACHE.write();
+    if let Some(cached) = cache.get(pattern) {
+        return Ok(cached.clone());
+    }
+    
+    let regex = Arc::new(Regex::new(pattern)?);
+    cache.insert(pattern.to_string(), regex.clone());
+    Ok(regex)
 }
 
 #[cfg(test)]
