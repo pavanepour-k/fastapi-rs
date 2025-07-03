@@ -1,8 +1,4 @@
-# FastAPI-RS
-
-High-performance Rust implementation for FastAPI core components, providing 3-5x performance improvements while maintaining 100% API compatibility.
-
-## Rust Architecture
+# Rust Architecture
 
 ```
 fastapi-rs/
@@ -44,59 +40,3 @@ fastapi-rs/
 └── tests/                    # Verification suite
 ```
 
-## Security Enhancements
-
-### Memory Safety
-
-- Zero buffer overflows (guaranteed at compile-time)
-- No use-after-free vulnerabilities
-- Automatic bounds checking on all operations
-
-## Testing
-
-```bash
-
-# Run Rust tests
-cargo test
-
-```
-
-
-### Code Quality
-
-```bash
-# Format Rust code
-cargo fmt
-
-# Lint Rust code
-cargo clippy -- -D warnings
-
-```
-
-## Compatibility
-
-### Platforms
-- Linux (x86_64, aarch64)
-- macOS (x86_64, Apple Silicon)
-- Windows (x86_64)
-
-### FastAPI Features
-- ✅ Path operations (GET, POST, PUT, DELETE, etc.)
-- ✅ Path parameters with types
-- ✅ Query parameters
-- ✅ Request body (JSON, Form, Files)
-- ✅ Header parameters
-- ✅ Cookie parameters
-- ✅ Dependency injection
-- ✅ Security schemes
-- ✅ OpenAPI generation
-- ✅ Automatic documentation
-
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-**FastAPI-RS** - Bringing Rust's performance and safety to Python's most loved web framework.
