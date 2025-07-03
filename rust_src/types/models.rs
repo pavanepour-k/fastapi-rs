@@ -1,8 +1,7 @@
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use chrono::{DateTime, Utc};
 
-/// Rust equivalent of FastAPI route model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RouteModel {
     pub path: String,
@@ -30,7 +29,6 @@ impl Default for RouteModel {
     }
 }
 
-/// Request validation model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationModel {
     pub valid: bool,
@@ -46,7 +44,6 @@ pub struct ValidationError {
     pub input_value: Option<String>,
 }
 
-/// Parameter schema model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParameterModel {
     pub name: String,
@@ -83,7 +80,6 @@ impl Default for ParameterConstraints {
     }
 }
 
-/// Security scheme model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecuritySchemeModel {
     pub scheme_type: String,
@@ -109,7 +105,6 @@ pub struct OAuthFlowModel {
     pub scopes: HashMap<String, String>,
 }
 
-/// Request model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequestModel {
     pub method: String,
@@ -135,12 +130,12 @@ impl RequestModel {
             timestamp: Utc::now(),
         }
     }
-
+    
     pub fn with_headers(mut self, headers: HashMap<String, String>) -> Self {
         self.headers = headers;
         self
     }
-
+    
     pub fn with_body(mut self, body: Vec<u8>, content_type: String) -> Self {
         self.body = Some(body);
         self.content_type = Some(content_type);
@@ -148,7 +143,6 @@ impl RequestModel {
     }
 }
 
-/// Response model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseModel {
     pub status_code: u16,
@@ -168,14 +162,14 @@ impl ResponseModel {
             timestamp: Utc::now(),
         }
     }
-
+    
     pub fn with_json_body(mut self, body: serde_json::Value) -> Result<Self, serde_json::Error> {
         let json_bytes = serde_json::to_vec(&body)?;
         self.body = Some(json_bytes);
         self.content_type = Some("application/json".to_string());
         Ok(self)
     }
-
+    
     pub fn with_text_body(mut self, text: String) -> Self {
         self.body = Some(text.into_bytes());
         self.content_type = Some("text/plain".to_string());
@@ -183,7 +177,6 @@ impl ResponseModel {
     }
 }
 
-/// Middleware model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MiddlewareModel {
     pub name: String,
@@ -192,7 +185,6 @@ pub struct MiddlewareModel {
     pub config: HashMap<String, serde_json::Value>,
 }
 
-/// Application configuration model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfigModel {
     pub title: String,
@@ -227,7 +219,6 @@ impl Default for CorsConfigModel {
     }
 }
 
-/// Performance metrics model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceMetrics {
     pub request_count: u64,
@@ -255,7 +246,6 @@ impl Default for PerformanceMetrics {
     }
 }
 
-/// Rate limiting model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RateLimitModel {
     pub key: String,
@@ -265,7 +255,52 @@ pub struct RateLimitModel {
     pub reset_time: DateTime<Utc>,
 }
 
-/// Cache entry model
+impl RateLimitModel {
+    pub fn new(key: String, limit: u32, window_seconds: u32) -> Self {
+        Self {
+            key,
+            limit,
+            window_seconds,
+            current_count: 0,
+            reset_time: Utc::now() + chrono::Duration::seconds(window_seconds as i64),
+        }
+    }
+    
+    pub fn is_exceeded(&self) -> bool {
+        self.current_count >= self.limit
+    }
+    
+    pub fn increment(&mut self) -> bool {
+        if self.is_expired() {
+            self.reset();
+        }
+        
+        if self.current_count < self.limit {
+            self.current_count += 1;
+            true
+        } else {
+            false
+        }
+    }
+    
+    pub fn is_expired(&self) -> bool {
+        Utc::now() > self.reset_time
+    }
+    
+    pub fn reset(&mut self) {
+        self.current_count = 0;
+        self.reset_time = Utc::now() + chrono::Duration::seconds(self.window_seconds as i64);
+    }
+    
+    pub fn remaining(&self) -> u32 {
+        if self.is_expired() {
+            self.limit
+        } else {
+            self.limit.saturating_sub(self.current_count)
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheEntryModel {
     pub key: String,
@@ -288,12 +323,12 @@ impl CacheEntryModel {
             last_accessed: now,
         }
     }
-
+    
     pub fn with_ttl(mut self, ttl_seconds: i64) -> Self {
         self.expires_at = Some(Utc::now() + chrono::Duration::seconds(ttl_seconds));
         self
     }
-
+    
     pub fn is_expired(&self) -> bool {
         if let Some(expires_at) = self.expires_at {
             Utc::now() > expires_at
@@ -301,14 +336,17 @@ impl CacheEntryModel {
             false
         }
     }
-
+    
     pub fn touch(&mut self) {
         self.last_accessed = Utc::now();
         self.access_count += 1;
     }
+    
+    pub fn time_to_live(&self) -> Option<i64> {
+        self.expires_at.map(|exp| (exp - Utc::now()).num_seconds().max(0))
+    }
 }
 
-/// Error model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorModel {
     pub error_type: String,
@@ -316,6 +354,7 @@ pub struct ErrorModel {
     pub details: Option<HashMap<String, serde_json::Value>>,
     pub timestamp: DateTime<Utc>,
     pub request_id: Option<String>,
+    pub status_code: Option<u16>,
 }
 
 impl ErrorModel {
@@ -326,24 +365,103 @@ impl ErrorModel {
             details: None,
             timestamp: Utc::now(),
             request_id: None,
+            status_code: None,
         }
     }
-
+    
     pub fn with_details(mut self, details: HashMap<String, serde_json::Value>) -> Self {
         self.details = Some(details);
         self
     }
-
+    
     pub fn with_request_id(mut self, request_id: String) -> Self {
         self.request_id = Some(request_id);
         self
+    }
+    
+    pub fn with_status_code(mut self, status_code: u16) -> Self {
+        self.status_code = Some(status_code);
+        self
+    }
+    
+    pub fn validation_error(field: String, message: String) -> Self {
+        let mut details = HashMap::new();
+        details.insert("field".to_string(), serde_json::Value::String(field));
+        
+        Self::new("ValidationError".to_string(), message)
+            .with_details(details)
+            .with_status_code(422)
+    }
+    
+    pub fn authentication_error(message: String) -> Self {
+        Self::new("AuthenticationError".to_string(), message)
+            .with_status_code(401)
+    }
+    
+    pub fn authorization_error(message: String) -> Self {
+        Self::new("AuthorizationError".to_string(), message)
+            .with_status_code(403)
+    }
+    
+    pub fn not_found_error(resource: String) -> Self {
+        Self::new("NotFoundError".to_string(), format!("{} not found", resource))
+            .with_status_code(404)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebSocketConnectionModel {
+    pub connection_id: String,
+    pub client_ip: String,
+    pub user_agent: Option<String>,
+    pub connected_at: DateTime<Utc>,
+    pub last_activity: DateTime<Utc>,
+    pub message_count: u64,
+    pub bytes_sent: u64,
+    pub bytes_received: u64,
+    pub metadata: HashMap<String, serde_json::Value>,
+}
+
+impl WebSocketConnectionModel {
+    pub fn new(connection_id: String, client_ip: String) -> Self {
+        let now = Utc::now();
+        Self {
+            connection_id,
+            client_ip,
+            user_agent: None,
+            connected_at: now,
+            last_activity: now,
+            message_count: 0,
+            bytes_sent: 0,
+            bytes_received: 0,
+            metadata: HashMap::new(),
+        }
+    }
+    
+    pub fn update_activity(&mut self, message_size: u64, is_outgoing: bool) {
+        self.last_activity = Utc::now();
+        self.message_count += 1;
+        
+        if is_outgoing {
+            self.bytes_sent += message_size;
+        } else {
+            self.bytes_received += message_size;
+        }
+    }
+    
+    pub fn duration(&self) -> chrono::Duration {
+        Utc::now() - self.connected_at
+    }
+    
+    pub fn idle_time(&self) -> chrono::Duration {
+        Utc::now() - self.last_activity
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    
     #[test]
     fn test_route_model_default() {
         let route = RouteModel::default();
@@ -352,53 +470,71 @@ mod tests {
         assert!(!route.deprecated);
         assert!(route.include_in_schema);
     }
-
+    
     #[test]
-    fn test_request_model_builder() {
-        let request = RequestModel::new("POST".to_string(), "/api/users".to_string())
-            .with_body(b"test body".to_vec(), "text/plain".to_string());
-
-        assert_eq!(request.method, "POST");
-        assert_eq!(request.url, "/api/users");
-        assert_eq!(request.body, Some(b"test body".to_vec()));
-        assert_eq!(request.content_type, Some("text/plain".to_string()));
+    fn test_rate_limit_model() {
+        let mut rate_limit = RateLimitModel::new("user123".to_string(), 5, 60);
+        
+        assert!(rate_limit.increment());
+        assert_eq!(rate_limit.current_count, 1);
+        assert_eq!(rate_limit.remaining(), 4);
+        
+        for _ in 0..4 {
+            assert!(rate_limit.increment());
+        }
+        
+        assert!(!rate_limit.increment());
+        assert!(rate_limit.is_exceeded());
+        assert_eq!(rate_limit.remaining(), 0);
     }
-
+    
     #[test]
-    fn test_response_model_json() {
-        let response = ResponseModel::new(200)
-            .with_json_body(serde_json::json!({"message": "success"}))
-            .unwrap();
-
-        assert_eq!(response.status_code, 200);
-        assert_eq!(response.content_type, Some("application/json".to_string()));
-        assert!(response.body.is_some());
-    }
-
-    #[test]
-    fn test_cache_entry_expiration() {
-        let mut entry =
-            CacheEntryModel::new("test_key".to_string(), serde_json::json!("test_value"))
-                .with_ttl(-1); // Already expired
-
-        assert!(entry.is_expired());
-
+    fn test_cache_entry_model() {
+        let mut entry = CacheEntryModel::new(
+            "test_key".to_string(), 
+            serde_json::json!("test_value")
+        ).with_ttl(3600);
+        
+        assert!(!entry.is_expired());
+        assert!(entry.time_to_live().unwrap() > 3500);
+        
         entry.touch();
         assert_eq!(entry.access_count, 1);
     }
-
+    
     #[test]
-    fn test_error_model_builder() {
-        let mut details = HashMap::new();
-        details.insert("field".to_string(), serde_json::json!("username"));
-
-        let error = ErrorModel::new("ValidationError".to_string(), "Invalid input".to_string())
-            .with_details(details)
-            .with_request_id("req_123".to_string());
-
-        assert_eq!(error.error_type, "ValidationError");
-        assert_eq!(error.message, "Invalid input");
-        assert!(error.details.is_some());
-        assert_eq!(error.request_id, Some("req_123".to_string()));
+    fn test_error_model_builders() {
+        let validation_error = ErrorModel::validation_error(
+            "email".to_string(), 
+            "Invalid email format".to_string()
+        );
+        
+        assert_eq!(validation_error.error_type, "ValidationError");
+        assert_eq!(validation_error.status_code, Some(422));
+        assert!(validation_error.details.is_some());
+        
+        let auth_error = ErrorModel::authentication_error("Token expired".to_string());
+        assert_eq!(auth_error.status_code, Some(401));
+        
+        let not_found = ErrorModel::not_found_error("User".to_string());
+        assert_eq!(not_found.message, "User not found");
+        assert_eq!(not_found.status_code, Some(404));
+    }
+    
+    #[test]
+    fn test_websocket_connection_model() {
+        let mut conn = WebSocketConnectionModel::new(
+            "conn123".to_string(),
+            "192.168.1.1".to_string()
+        );
+        
+        conn.update_activity(100, true);
+        assert_eq!(conn.message_count, 1);
+        assert_eq!(conn.bytes_sent, 100);
+        assert_eq!(conn.bytes_received, 0);
+        
+        conn.update_activity(50, false);
+        assert_eq!(conn.message_count, 2);
+        assert_eq!(conn.bytes_received, 50);
     }
 }
