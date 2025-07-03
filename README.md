@@ -38,5 +38,15 @@ fastapi-rs/
 │   └── python_bindings.rs    # PyO3 interface definitions
 │
 └── tests/                    # Verification suite
+    └── rust/
+        ├── common/mod.rs           # Shared utilities & mocks
+        ├── unit/
+        │   ├── test_routing.rs     # Route creation & matching
+        │   ├── test_validation.rs  # Parameter validation
+        │   ├── test_serialization.rs # JSON/multipart processing  
+        │   └── test_security.rs    # OAuth2 & security
+        ├── integration/
+        │   └── test_integration_fastapi.rs # End-to-end pipeline
+        └── bench/...
 ```
 
