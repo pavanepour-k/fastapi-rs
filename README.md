@@ -5,8 +5,14 @@ fastapi-rs/
 ├── rust_src/                 # High-performance Rust implementation
 │   ├── core/                 # Request lifecycle core
 │   │   ├── mod.rs
-│   │   ├── routing.rs        # Endpoint routing/dispatch
-│   │   └── request.rs        # Request processing
+│   │   └── routing.rs        # Endpoint routing/dispatch
+│   │
+│   ├── routing/               # Refactored structure
+│   │   ├── mod.rs
+│   │   ├── route_model.rs 
+│   │   ├── path_compiler.rs 
+│   │   ├── route_matcher.rs
+│   │   └── route_tree.rs
 │   │
 │   ├── params/               # Parameter processing
 │   │   ├── mod.rs
@@ -50,3 +56,4 @@ fastapi-rs/
         └── bench/...
 ```
 
+jul
