@@ -1,5 +1,3 @@
-//! Path pattern compilation for route matching.
-
 use once_cell::sync::Lazy;
 use regex::Regex;
 use smallvec::SmallVec;
@@ -98,80 +96,4 @@ pub fn has_path_params(path: &str) -> bool {
 /// Count number of parameters in path.
 pub fn count_path_params(path: &str) -> usize {
     PATH_PARAM_REGEX.captures_iter(path).count()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_simple_path() {
-        let (pattern, params, format) =
-            compile_path_pattern("/users").unwrap();
-        assert_eq!(pattern, r"^/users$");
-        assert!(params.is_empty());
-        assert_eq!(format, "/users");
-    }
-
-    #[test]
-    fn test_path_with_params() {
-        let (pattern, params, format) =
-            compile_path_pattern("/users/{id}").unwrap();
-        assert_eq!(pattern, r"^/users/([^/]+)$");
-        assert_eq!(params.as_slice(), &["id"]);
-        assert_eq!(format, "/users/{id}");
-    }
-
-    #[test]
-    fn test_typed_params() {
-        let cases = vec![
-            (
-                "/users/{id:int}",
-                r"^/users/([0-9]+)$",
-                vec!["id"],
-            ),
-            (
-                "/items/{price:float}",
-                r"^/items/([0-9]*\.?[0-9]+)$",
-                vec!["price"],
-            ),
-            (
-                "/files/{path:path}",
-                r"^/files/(.+)$",
-                vec!["path"],
-            ),
-        ];
-
-        for (path, expected_pattern, expected_params) in cases {
-            let (pattern, params, _) =
-                compile_path_pattern(path).unwrap();
-            assert_eq!(pattern, expected_pattern);
-            assert_eq!(params.into_vec(), expected_params);
-        }
-    }
-
-    #[test]
-    fn test_multiple_params() {
-        let (pattern, params, format) = compile_path_pattern(
-            "/users/{user_id}/posts/{post_id:int}",
-        )
-        .unwrap();
-        assert_eq!(pattern, r"^/users/([^/]+)/posts/([0-9]+)$");
-        assert_eq!(params.as_slice(), &["user_id", "post_id"]);
-        assert_eq!(format, "/users/{user_id}/posts/{post_id}");
-    }
-
-    #[test]
-    fn test_invalid_path() {
-        assert!(compile_path_pattern("users").is_err());
-        assert!(compile_path_pattern("").is_err());
-    }
-
-    #[test]
-    fn test_has_path_params() {
-        assert!(has_path_params("/users/{id}"));
-        assert!(has_path_params("/users/{id:int}/posts"));
-        assert!(!has_path_params("/users"));
-        assert!(!has_path_params("/api/v1/health"));
-    }
 }

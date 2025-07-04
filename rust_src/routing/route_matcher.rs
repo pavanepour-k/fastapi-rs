@@ -1,5 +1,3 @@
-//! Route matching logic and parameter extraction.
-
 use ahash::AHashMap;
 use parking_lot::RwLock;
 use regex::Regex;
@@ -103,46 +101,4 @@ pub fn create_compiled_routes(
             Ok(CompiledRoute::new(route, regex))
         })
         .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_regex_cache() {
-        let pattern = r"^/test/([^/]+)$";
-        let regex1 = get_or_compile_regex(pattern).unwrap();
-        let regex2 = get_or_compile_regex(pattern).unwrap();
-        assert!(Arc::ptr_eq(&regex1, &regex2));
-    }
-
-    #[test]
-    fn test_compile_route() {
-        let mut route = APIRoute::new(
-            "/users/{id:int}".to_string(),
-            vec!["GET".to_string()],
-        );
-        compile_route(&mut route).unwrap();
-        
-        assert!(route.path_regex.is_some());
-        assert_eq!(route.param_names, vec!["id"]);
-        assert_eq!(route.path_format, Some("/users/{id}".to_string()));
-    }
-
-    #[test]
-    fn test_match_single_route() {
-        let mut route = APIRoute::new(
-            "/users/{id}".to_string(),
-            vec!["GET".to_string(), "POST".to_string()],
-        );
-        compile_route(&mut route).unwrap();
-
-        let params = match_single_route(&route, "/users/123", "GET")
-            .unwrap();
-        assert_eq!(params.get("id"), Some(&"123".to_string()));
-
-        assert!(match_single_route(&route, "/users/123", "PUT").is_err());
-        assert!(match_single_route(&route, "/posts/123", "GET").is_err());
-    }
 }

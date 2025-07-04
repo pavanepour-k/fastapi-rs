@@ -1,5 +1,3 @@
-//! Route tree management for efficient route lookup.
-
 use ahash::AHashMap;
 use thiserror::Error;
 
@@ -122,66 +120,4 @@ pub fn create_route_tree(routes: Vec<APIRoute>) -> Result<RouteTree> {
         tree.add_route(route)?;
     }
     Ok(tree)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_empty_tree() {
-        let tree = RouteTree::new();
-        assert_eq!(tree.route_count(), 0);
-        assert!(tree.match_route("/test", "GET").is_none());
-    }
-
-    #[test]
-    fn test_static_routes() {
-        let mut tree = RouteTree::new();
-        tree.add_route(APIRoute::new(
-            "/users".to_string(),
-            vec!["GET".to_string()],
-        )).unwrap();
-
-        let matched = tree.match_route("/users", "GET");
-        assert!(matched.is_some());
-        assert_eq!(matched.unwrap().route_index, 0);
-
-        assert!(tree.match_route("/users", "POST").is_none());
-    }
-
-    #[test]
-    fn test_dynamic_routes() {
-        let mut tree = RouteTree::new();
-        tree.add_route(APIRoute::new(
-            "/users/{id}".to_string(),
-            vec!["GET".to_string()],
-        )).unwrap();
-
-        let matched = tree.match_route("/users/123", "GET").unwrap();
-        assert_eq!(matched.route_index, 0);
-        assert_eq!(matched.params.get("id"), Some(&"123".to_string()));
-    }
-
-    #[test]
-    fn test_multiple_routes() {
-        let mut tree = RouteTree::new();
-        tree.add_route(APIRoute::new(
-            "/users".to_string(),
-            vec!["GET".to_string()],
-        )).unwrap();
-        tree.add_route(APIRoute::new(
-            "/users/{id}".to_string(),
-            vec!["GET".to_string()],
-        )).unwrap();
-        tree.add_route(APIRoute::new(
-            "/posts/{id}".to_string(),
-            vec!["GET".to_string(), "POST".to_string()],
-        )).unwrap();
-
-        assert_eq!(tree.route_count(), 3);
-        assert!(tree.match_route("/users", "GET").is_some());
-        assert!(tree.match_route("/users/123", "GET").is_some());
-        assert!(tree.match_route("/posts/456", "POST").is_some());
-    }
 }

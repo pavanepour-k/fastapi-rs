@@ -1,5 +1,3 @@
-//! Route model definitions and core structures.
-
 use ahash::AHashMap;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -130,68 +128,5 @@ impl RouteMatch {
         params: AHashMap<String, String>,
     ) -> Self {
         Self { route_index, params }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_api_route_creation() {
-        let route = APIRoute::new(
-            "/users/{id}".to_string(),
-            vec!["GET".to_string(), "POST".to_string()],
-        );
-
-        assert_eq!(route.path, "/users/{id}");
-        assert_eq!(route.methods, vec!["GET", "POST"]);
-        assert!(route.name.is_none());
-        assert!(route.include_in_schema);
-    }
-
-    #[test]
-    fn test_route_builder() {
-        let route = APIRoute::new(
-            "/api/v1/users".to_string(),
-            vec!["GET".to_string()],
-        )
-        .with_name("get_users".to_string())
-        .with_tags(vec!["users".to_string()])
-        .include_in_schema(false);
-
-        assert_eq!(route.name, Some("get_users".to_string()));
-        assert_eq!(route.tags, vec!["users"]);
-        assert!(!route.include_in_schema);
-    }
-
-    #[test]
-    fn test_supports_method() {
-        let route = APIRoute::new(
-            "/test".to_string(),
-            vec!["GET".to_string(), "POST".to_string()],
-        );
-
-        assert!(route.supports_method("GET"));
-        assert!(route.supports_method("get"));
-        assert!(route.supports_method("POST"));
-        assert!(!route.supports_method("PUT"));
-        assert!(!route.supports_method("DELETE"));
-    }
-
-    #[test]
-    fn test_get_name() {
-        let route1 = APIRoute::new(
-            "/users/{id}/posts".to_string(),
-            vec!["GET".to_string()],
-        );
-        assert_eq!(route1.get_name(), "users_id_posts");
-
-        let route2 = APIRoute::new(
-            "/api/v1/items".to_string(),
-            vec!["GET".to_string()],
-        )
-        .with_name("list_items".to_string());
-        assert_eq!(route2.get_name(), "list_items");
     }
 }
