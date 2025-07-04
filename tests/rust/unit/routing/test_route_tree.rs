@@ -1,6 +1,6 @@
 //! Unit tests for route matching functionality.
 
-use fastapi_rs::routing::{
+use rust_src::routing::{
     APIRoute, CompiledRoute, RouteMatch,
     compile_route, match_route, match_single_route,
     create_compiled_routes, get_or_compile_regex,

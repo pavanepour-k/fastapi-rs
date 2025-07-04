@@ -3,16 +3,11 @@ use std::collections::HashMap;
 #[cfg(test)]
 use serde_json::Value;
 #[cfg(test)]
-use fastapi_rs::{core, params, types, security};
+use rust_src::{core, params, types, security};
 
 #[cfg(test)]
 pub fn setup() {
     std::env::set_var("RUST_LOG", "debug");
-}
-
-#[cfg(test)]
-pub fn mock_route() -> core::routing::APIRoute {
-    core::routing::APIRoute::new("/users/{id}".to_string(), vec!["GET".to_string()])
 }
 
 #[cfg(test)]
@@ -51,9 +46,4 @@ pub fn assert_validation_success(result: &params::validation::ValidationResult) 
 pub fn assert_validation_failure(result: &params::validation::ValidationResult) {
     assert!(!result.valid);
     assert!(!result.errors.is_empty());
-}
-
-#[cfg(test)]
-pub fn assert_route_matches(route: &core::routing::APIRoute, path: &str, method: &str) -> bool {
-    route.matches(path, method).is_some()
 }

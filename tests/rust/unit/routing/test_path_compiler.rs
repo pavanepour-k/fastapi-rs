@@ -1,6 +1,6 @@
 //! Unit tests for path compilation functionality.
 
-use fastapi_rs::routing::path_compiler::{
+use rust_src::routing::path_compiler::{
     compile_path_pattern, extract_param_type, has_path_params,
     count_path_params, CompilationError,
 };

@@ -1,7 +1,7 @@
 #[path = "../common/mod.rs"]
 mod common;
 
-use fastapi_rs::serialization::*;
+use rust_src::serialization::*;
 use common::*;
 use serde_json::json;
 

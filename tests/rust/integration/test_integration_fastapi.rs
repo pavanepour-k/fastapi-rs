@@ -1,7 +1,7 @@
 #[path = "../common/mod.rs"]
 mod common;
 
-use fastapi_rs::{core, params, serialization, security};
+use rust_src::{core, params, serialization, security};
 use common::*;
 use std::collections::HashMap;
 use serde_json::json;

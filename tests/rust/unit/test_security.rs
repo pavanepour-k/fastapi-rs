@@ -1,7 +1,7 @@
 #[path = "../common/mod.rs"]
 mod common;
 
-use fastapi_rs::security::*;
+use rust_src::security::*;
 use common::*;
 
 #[test]

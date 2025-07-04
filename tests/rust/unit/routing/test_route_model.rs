@@ -1,7 +1,7 @@
 //! Unit tests for route model structures.
 
 use ahash::AHashMap;
-use fastapi_rs::routing::route_model::{APIRoute, CompiledRoute, RouteMatch};
+use rust_src::routing::route_model::{APIRoute, CompiledRoute, RouteMatch};
 use regex::Regex;
 use std::sync::Arc;
 

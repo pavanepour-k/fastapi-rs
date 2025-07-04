@@ -1,6 +1,6 @@
 //! Integration tests for routing functionality.
 
-use fastapi_rs::routing::{
+use rust_src::routing::{
     create_api_route, compile_path_regex, RouteTree,
     APIRoute, create_route_tree,
 };
